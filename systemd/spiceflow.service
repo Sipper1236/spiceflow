@@ -1,0 +1,12 @@
+[Unit]
+Description=Playback-safe Ryoku palette bridge for Spicetify
+After=ryoku-shell.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node %h/.config/spicetify/spiceflow/server.js
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
