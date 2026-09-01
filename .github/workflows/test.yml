@@ -12,7 +12,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: bash -n install.sh uninstall.sh doctor.sh
+      - run: bash -n install.sh uninstall.sh doctor.sh src/spiceflow-cli
       - run: node --check src/server.js
       - run: node --check src/spiceflow.js
       - run: node test/server.test.js
+      - run: bash test/install-only.test.sh

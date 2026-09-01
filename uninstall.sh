@@ -17,6 +17,7 @@ fi
 
 rm -f -- "$spice_dir/Extensions/spiceflow.js"
 rm -rf -- "$spice_dir/spiceflow"
+rm -f -- "$HOME/.local/bin/spiceflow"
 
 extensions=$(spicetify config extensions 2>/dev/null | tail -n 1 || true)
 if [[ "|$extensions|" == *"|spiceflow.js|"* ]]; then

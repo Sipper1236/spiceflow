@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+spice_dir="$config_home/spicetify"
+
+enable() {
+  extensions=$(spicetify config extensions 2>/dev/null | tail -n 1 || true)
+  if [[ "|$extensions|" != *"|spiceflow.js|"* ]]; then
+    spicetify config extensions spiceflow.js
+  fi
+  spicetify config current_theme Comfy color_scheme wal16 \
+    inject_css 1 replace_colors 1 overwrite_assets 1 inject_theme_js 1
+  systemctl --user daemon-reload
+  systemctl --user enable --now spiceflow.service
+  spicetify apply
+  printf 'Spiceflow enabled. Wallpaper changes now repaint Spotify without reloads.\n'
+}
+
+disable() {
+  systemctl --user disable --now spiceflow.service 2>/dev/null || true
+  extensions=$(spicetify config extensions 2>/dev/null | tail -n 1 || true)
+  if [[ "|$extensions|" == *"|spiceflow.js|"* ]]; then
+    spicetify config extensions spiceflow.js-
+  fi
+  printf 'Spiceflow disabled. Run `spicetify apply` when convenient to remove it from Spotify.\n'
+}
+
+case ${1:-help} in
+  enable) enable ;;
+  disable) disable ;;
+  restart) systemctl --user restart spiceflow.service ;;
+  status)
+    systemctl --user status spiceflow.service --no-pager
+    ;;
+  doctor)
+    exec "$spice_dir/spiceflow/doctor.sh"
+    ;;
+  help|-h|--help)
+    printf '%s\n' \
+      'Usage: spiceflow <command>' \
+      '' \
+      '  enable   Activate Comfy/wal16 and the live palette bridge' \
+      '  disable  Stop the bridge and unregister the extension' \
+      '  restart  Restart only the palette bridge' \
+      '  status   Show palette bridge service status' \
+      '  doctor   Verify every Spiceflow layer'
+    ;;
+  *)
+    printf 'Unknown command: %s\n' "$1" >&2
+    exit 2
+    ;;
+esac

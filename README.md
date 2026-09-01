@@ -53,10 +53,20 @@ The installer can download Comfy if it is absent. The initial `spicetify apply`
 may reload Spotify once to install the theme and extension. Wallpaper changes
 after setup do not reload Spotify or pause playback.
 
+For install-only environments such as RyoStore:
+
+```bash
+./install.sh --install-only
+spiceflow enable
+```
+
+The first command places the integration without changing Spotify or starting
+the service. Activation remains an explicit user action.
+
 ## Verify
 
 ```bash
-./doctor.sh
+spiceflow doctor
 ```
 
 Or inspect each layer manually:

@@ -3,11 +3,19 @@
 set -euo pipefail
 
 project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+install_only=false
+if [[ ${1:-} == --install-only ]]; then
+  install_only=true
+elif (( $# > 0 )); then
+  printf 'Usage: %s [--install-only]\n' "$0" >&2
+  exit 2
+fi
 config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 spice_dir="$config_home/spicetify"
 theme_dir="$spice_dir/Themes/Comfy"
 runtime_dir="$spice_dir/spiceflow"
 unit_dir="$config_home/systemd/user"
+bin_dir="$HOME/.local/bin"
 
 for command_name in git node spicetify systemctl; do
   command -v "$command_name" >/dev/null || {
@@ -16,7 +24,7 @@ for command_name in git node spicetify systemctl; do
   }
 done
 
-mkdir -p "$spice_dir/Extensions" "$spice_dir/Themes" "$runtime_dir" "$unit_dir"
+mkdir -p "$spice_dir/Extensions" "$spice_dir/Themes" "$runtime_dir" "$unit_dir" "$bin_dir"
 
 if [[ ! -f "$theme_dir/color.ini" ]]; then
   download_dir=$(mktemp -d)
@@ -31,25 +39,23 @@ fi
 
 install -m 0644 "$project_dir/src/spiceflow.js" "$spice_dir/Extensions/spiceflow.js"
 install -m 0644 "$project_dir/src/server.js" "$runtime_dir/server.js"
+install -m 0755 "$project_dir/doctor.sh" "$runtime_dir/doctor.sh"
+install -m 0755 "$project_dir/src/spiceflow-cli" "$bin_dir/spiceflow"
 install -m 0644 "$project_dir/systemd/spiceflow.service" "$unit_dir/spiceflow.service"
 
-extensions=$(spicetify config extensions 2>/dev/null | tail -n 1 || true)
-if [[ "|$extensions|" != *"|spiceflow.js|"* ]]; then
-  spicetify config extensions spiceflow.js
+systemctl --user daemon-reload
+
+if $install_only; then
+  printf 'Spiceflow installed but not activated. Run `spiceflow enable` when ready.\n'
+  exit 0
 fi
 
-spicetify config current_theme Comfy color_scheme wal16 \
-  inject_css 1 replace_colors 1 overwrite_assets 1 inject_theme_js 1
-
-systemctl --user daemon-reload
-systemctl --user enable --now spiceflow.service
-
-printf '\nSpiceflow is installed. Apply the initial Spicetify setup now? [Y/n] '
+printf '\nSpiceflow is installed. Enable it and apply the initial Spicetify setup now? [Y/n] '
 read -r answer
 if [[ ! "$answer" =~ ^[Nn]$ ]]; then
-  spicetify apply
+  "$bin_dir/spiceflow" enable
 else
-  printf 'Skipped. Run `spicetify apply` once when convenient.\n'
+  printf 'Skipped. Run `spiceflow enable` when convenient.\n'
 fi
 
-printf 'Installed Spiceflow. Run %s/doctor.sh to verify it.\n' "$project_dir"
+printf 'Installed Spiceflow. Run `spiceflow doctor` to verify it.\n'
