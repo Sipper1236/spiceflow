@@ -17,3 +17,4 @@ jobs:
       - run: node --check src/spiceflow.js
       - run: node test/server.test.js
       - run: bash test/install-only.test.sh
+      - run: node test/pywal.test.js

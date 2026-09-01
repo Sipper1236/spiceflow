@@ -5,6 +5,8 @@ After=ryoku-shell.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/node %h/.config/spicetify/spiceflow/server.js
+# Optional override: set SPICEFLOW_PALETTE to auto, ryoku, or pywal.
+Environment=SPICEFLOW_PALETTE=auto
 Restart=on-failure
 RestartSec=2
 
