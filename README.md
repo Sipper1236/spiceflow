@@ -14,6 +14,10 @@ flows reload theme resources or the renderer; renderer reloads pause playback.
 
 Spiceflow changes only CSS custom properties in the running page.
 
+## Demo
+
+[Watch Spiceflow change Spotify's palette while playback continues](docs/spiceflow-demo.mp4).
+
 ## How it works
 
 ```text
@@ -62,6 +66,18 @@ spiceflow enable
 
 The first command places the integration without changing Spotify or starting
 the service. Activation remains an explicit user action.
+
+`spiceflow enable` performs the one-time activation: it enables and starts the
+per-user palette bridge, adds `spiceflow.js` to Spicetify, selects Comfy's
+`wal16` scheme, and applies Spicetify. That initial apply can reload Spotify
+once. After activation, wallpaper changes are handled live and do not rerun
+Spicetify or interrupt playback.
+
+To stop the integration later:
+
+```bash
+spiceflow disable
+```
 
 ## Verify
 
