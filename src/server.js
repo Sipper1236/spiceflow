@@ -7,7 +7,9 @@ const path = require("path");
 const home = os.homedir();
 const config = process.env.XDG_CONFIG_HOME || path.join(home, ".config");
 const cache = process.env.XDG_CACHE_HOME || path.join(home, ".cache");
-const palettePath = path.join(cache, "ryoku", "colors.json");
+const ryokuPalettePath = path.join(cache, "ryoku", "colors.json");
+const pywalPalettePath = path.join(cache, "wal", "colors.json");
+const requestedSource = process.env.SPICEFLOW_PALETTE || "auto";
 const comfyDir = path.join(config, "spicetify", "Themes", "Comfy");
 const colorPath = path.join(comfyDir, "color.ini");
 const basePath = path.join(comfyDir, "color.ini.spiceflow-base");
@@ -42,12 +44,52 @@ const roles = {
   "radio-btn-active": "primary",
 };
 
+function hex(value, fallback) {
+  return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
+}
+
+function pywalToMaterial(document) {
+  const colors = document.colors || {};
+  const special = document.special || {};
+  const color = (number, fallback) => hex(colors[`color${number}`], fallback);
+  const background = hex(special.background, color(0, "#121212"));
+  const foreground = hex(special.foreground, color(15, "#ffffff"));
+  return {
+    background,
+    onSurface: foreground,
+    onSurfaceVariant: color(7, foreground),
+    surface: background,
+    surfaceContainerLow: color(0, background),
+    surfaceContainer: color(1, background),
+    surfaceContainerHigh: color(5, color(8, background)),
+    surfaceContainerHighest: color(13, color(5, background)),
+    shadow: color(8, "#000000"),
+    primary: color(6, foreground),
+    primaryContainer: color(14, color(6, foreground)),
+    outlineVariant: color(8, color(7, foreground)),
+    secondary: color(10, color(2, foreground)),
+    tertiary: color(3, color(11, foreground)),
+    error: color(9, color(1, "#d25050")),
+    surfaceVariant: color(0, background),
+  };
+}
+
+function paletteSource() {
+  if (requestedSource === "ryoku") return { type: "ryoku", file: ryokuPalettePath };
+  if (requestedSource === "pywal") return { type: "pywal", file: pywalPalettePath };
+  if (fs.existsSync(ryokuPalettePath)) return { type: "ryoku", file: ryokuPalettePath };
+  if (fs.existsSync(pywalPalettePath)) return { type: "pywal", file: pywalPalettePath };
+  throw new Error("no palette found (expected Ryoku or Pywal colors.json)");
+}
+
 function palette() {
-  return JSON.parse(fs.readFileSync(palettePath, "utf8"));
+  const source = paletteSource();
+  const document = JSON.parse(fs.readFileSync(source.file, "utf8"));
+  return source.type === "pywal" ? pywalToMaterial(document) : document;
 }
 
 function render() {
-  if (!fs.existsSync(basePath) || !fs.existsSync(palettePath)) return;
+  if (!fs.existsSync(basePath)) return;
   const colors = palette();
   const body = fs.readFileSync(basePath, "utf8");
   const lines = [
@@ -70,12 +112,14 @@ function render() {
 }
 
 let timer;
-fs.watchFile(palettePath, { interval: 500 }, () => {
+function scheduleRender() {
   clearTimeout(timer);
   timer = setTimeout(() => {
     try { render(); } catch (error) { console.error(`render: ${error.message}`); }
   }, 100);
-});
+}
+fs.watchFile(ryokuPalettePath, { interval: 500 }, scheduleRender);
+fs.watchFile(pywalPalettePath, { interval: 500 }, scheduleRender);
 
 try { render(); } catch (error) { console.error(`initial render: ${error.message}`); }
 
@@ -89,7 +133,7 @@ http.createServer((request, response) => {
   if (request.method === "OPTIONS") return response.writeHead(204, cors).end();
   if (!request.url.startsWith("/colors.json")) return response.writeHead(404).end();
   try {
-    const data = fs.readFileSync(palettePath);
+    const data = Buffer.from(JSON.stringify(palette()));
     response.writeHead(200, {
       ...cors,
       "Cache-Control": "no-store",
@@ -100,5 +144,7 @@ http.createServer((request, response) => {
     response.writeHead(503, cors).end();
   }
 }).listen(port, "127.0.0.1", () => {
-  console.log(`Spiceflow listening on http://127.0.0.1:${port}`);
+  let source = "unavailable";
+  try { source = paletteSource().type; } catch (_) {}
+  console.log(`Spiceflow listening on http://127.0.0.1:${port} (${source})`);
 });

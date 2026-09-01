@@ -1,8 +1,9 @@
 # Spiceflow
 
-Playback-safe wallpaper colors for **Ryoku + Spicetify + Comfy**.
+Playback-safe wallpaper colors for **Ryoku or Pop!_OS/Pywal + Spicetify +
+Comfy**.
 
-Spiceflow makes an open Spotify client follow Ryoku's live Matugen wallpaper
+Spiceflow makes an open Spotify client follow a Ryoku/Matugen or Pywal wallpaper
 palette without restarting Spotify, reloading its renderer, or pausing playback.
 
 ## Why
@@ -17,7 +18,8 @@ Spiceflow changes only CSS custom properties in the running page.
 ## How it works
 
 ```text
-wallpaper → Ryoku/Matugen → ~/.cache/ryoku/colors.json
+wallpaper ─┬─ Ryoku/Matugen → ~/.cache/ryoku/colors.json
+           └─ Pywal         → ~/.cache/wal/colors.json
                                 │
                                 ├─ Spiceflow bridge → Comfy/color.ini
                                 │
@@ -26,7 +28,8 @@ wallpaper → Ryoku/Matugen → ~/.cache/ryoku/colors.json
                                                         └─ --spice-* variables
 ```
 
-- A small Node service watches Ryoku's palette and keeps Comfy's on-disk
+- A small Node service auto-detects and watches Ryoku or Pywal, normalizes the
+  palette, and keeps Comfy's on-disk
   `wal16` scheme current for future launches.
 - The service exposes the palette on localhost only, with Chromium's required
   private-network CORS headers.
@@ -36,10 +39,11 @@ wallpaper → Ryoku/Matugen → ~/.cache/ryoku/colors.json
 
 ## Requirements
 
-- Ryoku with Follow Wallpaper and app theming enabled
+- Ryoku with Follow Wallpaper enabled, or Pywal on Pop!_OS/another Linux distro
 - Spotify patched by Spicetify
 - Node.js, Git, curl, and systemd user services
-- Linux (the current integration targets Ryoku)
+- Linux
+- A systemd-based desktop session (Ryoku and Pop!_OS both qualify)
 
 ## Install
 
@@ -52,6 +56,46 @@ cd spiceflow
 The installer can download Comfy if it is absent. The initial `spicetify apply`
 may reload Spotify once to install the theme and extension. Wallpaper changes
 after setup do not reload Spotify or pause playback.
+
+## Pop!_OS setup
+
+Spiceflow uses Pywal as the wallpaper palette provider on Pop!_OS. Install the
+requirements using your preferred package method, ensure `node`, `git`,
+`systemctl`, `curl`, and `spicetify` are on `PATH`, then generate a palette:
+
+```bash
+wal -i /path/to/wallpaper.jpg
+```
+
+Install Spiceflow normally afterward. It auto-detects
+`~/.cache/wal/colors.json` when a Ryoku palette is not present:
+
+```bash
+git clone https://github.com/Sipper1236/spiceflow.git
+cd spiceflow
+./install.sh
+./doctor.sh
+```
+
+Whenever the wallpaper changes, run `wal -i` for the new image. Wallpaper
+switchers can invoke that command as their post-change hook. Spiceflow detects
+the resulting `colors.json` update and repaints Spotify without pausing it.
+
+To force Pywal when both palette files exist, create a systemd override:
+
+```bash
+systemctl --user edit spiceflow.service
+```
+
+Add:
+
+```ini
+[Service]
+Environment=SPICEFLOW_PALETTE=pywal
+```
+
+Then run `systemctl --user daemon-reload` and restart only
+`spiceflow.service`; Spotify itself does not need restarting.
 
 ## Verify
 
@@ -76,14 +120,17 @@ must contain `spiceflow.js`.
 
 ### Wallpaper changes but Spotify does not
 
-Check whether Ryoku updated its source palette:
+Check whether the active provider updated its source palette:
 
 ```bash
 stat ~/.cache/ryoku/colors.json
+# Pop!_OS/Pywal:
+stat ~/.cache/wal/colors.json
 ```
 
-If it did not change, confirm Follow Wallpaper and app theming in Ryoku, then
-run `ryoku reload`.
+If Ryoku did not change, confirm Follow Wallpaper and run `ryoku reload`. If
+Pywal did not change, rerun `wal -i /path/to/current-wallpaper` and check its
+output.
 
 If it changed, inspect Spiceflow:
 

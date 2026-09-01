@@ -15,7 +15,14 @@ check() {
   fi
 }
 
-check test -s "$cache_home/ryoku/colors.json"
+if [[ -s "$cache_home/ryoku/colors.json" ]]; then
+  printf 'ok   Ryoku palette found\n'
+elif [[ -s "$cache_home/wal/colors.json" ]]; then
+  printf 'ok   Pywal palette found\n'
+else
+  printf 'FAIL no Ryoku or Pywal palette found\n'
+  failed=1
+fi
 check test -s "$config_home/spicetify/Themes/Comfy/color.ini"
 check test -s "$config_home/spicetify/Extensions/spiceflow.js"
 check systemctl --user is-active spiceflow.service
